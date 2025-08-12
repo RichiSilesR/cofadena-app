@@ -101,7 +101,7 @@ export function UserNav() {
             </div>
              <div>
                 <h3 className="font-semibold text-primary">Exportación de Datos</h3>
-                <p className="text-muted-foreground">Las secciones "Proyectos" y "Reportes" tienen un botón de "Exportar". Esto te permite descargar la información que ves en la tabla (incluyendo los filtros que hayas aplicado) en formatos CSV (para Excel) y PDF (para documentos profesionales).</p>
+                <p className="text-muted-foreground">La sección "Proyectos" tiene un botón de "Exportar". Esto te permite descargar la información que ves en la tabla (incluyendo los filtros que hayas aplicado) en formatos CSV (para Excel) y PDF (para documentos profesionales).</p>
             </div>
              <div>
                 <h3 className="font-semibold text-primary">Roles de Usuario</h3>

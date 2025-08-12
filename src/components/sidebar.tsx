@@ -20,15 +20,21 @@ export function Sidebar() {
 
   const mainNav = [
     { href: '/dashboard', label: 'Inicio', icon: Home, roles: ['Super Usuario', 'Administrador', 'Supervisor', 'Usuario'] },
-    { href: '/produccion', label: 'Producción', icon: Factory, roles: ['Super Usuario', 'Supervisor'] },
   ];
+
+  const produccionNav = [
+    { href: '/produccion/parametros', label: 'Parámetros', icon: Settings, roles: ['Super Usuario', 'Supervisor'] },
+    { href: '/produccion/visualizacion', label: 'Visualización', icon: ListTodo, roles: ['Super Usuario', 'Supervisor'] },
+  ];
+  const userCanSeeProduccion = produccionNav.some(item => item.roles.includes(user.role));
+  const isProduccionPath = produccionNav.some(item => pathname.startsWith(item.href));
 
   const registrosNav = [
       { href: '/registros/clientes', label: 'Clientes', icon: Contact, roles: ['Super Usuario', 'Administrador', 'Supervisor'] },
       { href: '/registros/mixers', label: 'Mixers', icon: Truck, roles: ['Super Usuario', 'Administrador', 'Supervisor'] },
       { href: '/registros/choferes', label: 'Choferes', icon: Contact, roles: ['Super Usuario', 'Administrador', 'Supervisor'] },
       { href: '/proyectos', label: 'Proyectos', icon: Construction, roles: ['Super Usuario', 'Administrador', 'Supervisor', 'Usuario'] },
-      { href: '/reportes', label: 'Reportes', icon: ListTodo, roles: ['Super Usuario', 'Administrador', 'Supervisor', 'Usuario'] },
+
   ];
 
   const adminNav = [
@@ -70,6 +76,34 @@ export function Sidebar() {
                 {item.label}
               </Link>
             ))}
+
+            {userCanSeeProduccion && (
+              <Accordion type="single" collapsible defaultValue={isProduccionPath ? "produccion" : ""} className="w-full">
+                  <AccordionItem value="produccion" className="border-b-0">
+                      <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:no-underline [&[data-state=open]>svg]:text-primary">
+                           <Factory className="h-4 w-4" />
+                           Producción
+                      </AccordionTrigger>
+                      <AccordionContent className="pl-4">
+                           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+                              {produccionNav.filter(item => item.roles.includes(user.role)).map((item) => (
+                                  <Link
+                                      key={item.href}
+                                      href={item.href}
+                                      className={cn(
+                                      'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                                      pathname.startsWith(item.href) && 'bg-muted text-primary'
+                                      )}
+                                  >
+                                      <item.icon className="h-4 w-4" />
+                                      {item.label}
+                                  </Link>
+                              ))}
+                           </nav>
+                      </AccordionContent>
+                  </AccordionItem>
+              </Accordion>
+            )}
             
             {userCanSeeRegistros && (
               <Accordion type="single" collapsible defaultValue={isRegistrosPath ? "registros" : ""} className="w-full">

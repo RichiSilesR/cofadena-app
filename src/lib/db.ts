@@ -440,7 +440,6 @@ export const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
 });
 
-export { logAudit };
 
 pool.on('connect', () => {
   console.log('Conectado a la base de datos PostgreSQL.');
