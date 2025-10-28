@@ -423,6 +423,88 @@ export async function updateClient(id, client, audit = {}) {
   return updated;
 }
 
+// --- Reportes de producción ---
+export async function getReports({ from, to } = {}) {
+  // Seleccionamos los campos de production_reports y añadimos nombres legibles mediante LEFT JOIN
+  let sql = `SELECT pr.id, pr.occurred_at, pr.arido1, pr.arido2, pr.arido3,
+                    pr.client_id, pr.project_id, pr.mixer_id, pr.driver_id,
+                    c.name AS client, p.project_name AS project,
+                    CONCAT(m.alias, COALESCE(' (' || m.plate || ')','')) AS mixer,
+                    d.name AS driver,
+                    pr.notes, pr.created_at
+               FROM production_reports pr
+               LEFT JOIN clients c ON pr.client_id = c.id
+               LEFT JOIN projects p ON pr.project_id = p.id
+               LEFT JOIN mixers m ON pr.mixer_id = m.id
+               LEFT JOIN drivers d ON pr.driver_id = d.id
+               WHERE 1=1`;
+  const params: any[] = [];
+  let idx = 1;
+  if (from) { sql += ` AND pr.occurred_at >= $${idx++}`; params.push(from); }
+  if (to) { sql += ` AND pr.occurred_at <= $${idx++}`; params.push(to); }
+  sql += ' ORDER BY pr.occurred_at DESC LIMIT 2000';
+  const res = await pool.query(sql, params);
+  return res.rows;
+}
+
+export async function createReport(report, audit = {}) {
+  const {
+    occurred_at,
+    arido1,
+    arido2,
+    arido3,
+    client_id,
+    project_id,
+    mixer_id,
+    driver_id,
+    notes
+  } = report;
+
+  // Insertar solamente en las columnas existentes en la tabla
+  const insertRes = await pool.query(
+    `INSERT INTO production_reports (occurred_at, arido1, arido2, arido3, client_id, project_id, mixer_id, driver_id, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+    [occuredOrNow(occurred_at), arido1 ?? 0, arido2 ?? 0, arido3 ?? 0, client_id ?? null, project_id ?? null, mixer_id ?? null, driver_id ?? null, notes ?? '']
+  );
+  const createdId = insertRes.rows[0].id;
+  // Recuperar el registro con joins para devolver los nombres legibles
+  const selectSql = `SELECT pr.id, pr.occurred_at, pr.arido1, pr.arido2, pr.arido3,
+                            pr.client_id, pr.project_id, pr.mixer_id, pr.driver_id,
+                            c.name AS client, p.project_name AS project,
+                            CONCAT(m.alias, COALESCE(' (' || m.plate || ')','')) AS mixer,
+                            d.name AS driver,
+                            pr.notes, pr.created_at
+                     FROM production_reports pr
+                     LEFT JOIN clients c ON pr.client_id = c.id
+                     LEFT JOIN projects p ON pr.project_id = p.id
+                     LEFT JOIN mixers m ON pr.mixer_id = m.id
+                     LEFT JOIN drivers d ON pr.driver_id = d.id
+                     WHERE pr.id = $1`;
+  const res = await pool.query(selectSql, [createdId]);
+  const created = res.rows[0];
+  // opción de auditoría si se desea
+  if (audit.user_id || audit.username) {
+    try {
+      await pool.query(
+        `INSERT INTO audit_log (user_id, username, action_type, entity, entity_id, after_data, description) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [audit.user_id || null, audit.username || null, 'create', 'production_reports', created.id, JSON.stringify(created), `Reporte creado manualmente`]
+      );
+    } catch (e) {
+      console.warn('No se pudo escribir auditoría para createReport', e);
+    }
+  }
+  return created;
+}
+
+function occuredOrNow(val) {
+  try {
+    if (!val) return new Date().toISOString();
+    return new Date(val).toISOString();
+  } catch (e) {
+    return new Date().toISOString();
+  }
+}
+
 export async function deleteClient(id) {
   await pool.query('DELETE FROM clients WHERE id = $1', [id]);
   return true;
@@ -436,11 +518,40 @@ if (!process.env.POSTGRES_URL) {
   throw new Error('La variable de entorno POSTGRES_URL no está definida. Asegúrate de tener un archivo .env en la raíz del proyecto.');
 }
 
-export const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-});
+// Permitir fallback a PGPASSWORD si la connection string no trae contraseña
+let poolConfig: any = { connectionString: process.env.POSTGRES_URL };
+// Sanear y normalizar la variable POSTGRES_URL: puede venir con prefijo 'POSTGRES_URL=' o comillas
+const rawEnv = String(process.env.POSTGRES_URL || '').trim();
+let connStr = rawEnv.replace(/^POSTGRES_URL\s*=\s*/i, '').trim();
+if ((connStr.startsWith("'") && connStr.endsWith("'")) || (connStr.startsWith('"') && connStr.endsWith('"'))) {
+  connStr = connStr.slice(1, -1);
+}
+poolConfig.connectionString = connStr;
+try {
+  const url = new URL(connStr);
+  const hasPassword = (url.password && url.password.length > 0);
+  if (!hasPassword && process.env.PGPASSWORD) {
+    // Pasar la password explícita al pool (útil cuando la connection string no incluye password)
+    poolConfig.password = process.env.PGPASSWORD;
+    console.log('Usando PGPASSWORD como password para la conexión a PostgreSQL');
+  } else if (!hasPassword && !process.env.PGPASSWORD) {
+    console.warn('La POSTGRES_URL no contiene contraseña y PGPASSWORD no está definida. Si tu servidor PostgreSQL requiere autenticación, define la contraseña en POSTGRES_URL o en la variable PGPASSWORD.');
+  }
+} catch (err) {
+  // Si la URL no es parseable, intentamos dar un mensaje claro y dejamos que pg maneje el connectionString
+  console.warn('No se pudo parsear POSTGRES_URL como URL. Se usará el valor sin cambios en pool.connectionString. Asegúrate de que POSTGRES_URL tenga el formato: postgresql://user:pass@host:5432/dbname');
+  console.warn('Valor usado para la conexión (ocultando posible password):', (() => {
+    try {
+      const m = connStr.match(/^(.*?:).*?@(.*)$/);
+      if (m) return `${m[1]}****@${m[2]}`;
+      return connStr;
+    } catch (e) { return connStr; }
+  })());
+}
 
+export const pool = new Pool(poolConfig);
 
+// Intento de verificación temprana de la conexión para dar mensajes útiles
 pool.on('connect', () => {
   console.log('Conectado a la base de datos PostgreSQL.');
 });
@@ -449,3 +560,52 @@ pool.on('error', (err) => {
   console.error('Error inesperado en el cliente de la base de datos', err);
   process.exit(-1);
 });
+
+// Ejecutar una consulta de verificación inmediata para fallar rápido y dar guía
+(async () => {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('SELECT 1');
+      client.release();
+      console.log('Verificación de conexión a PostgreSQL: OK');
+    } catch (innerErr) {
+      client.release();
+      // Detectar error de autenticación SCRAM y dar mensaje claro
+      const msg = String(innerErr && innerErr.message ? innerErr.message : innerErr);
+      // Si el error indica host no encontrado (ENOTFOUND), extraer el hostname y dar guía
+      if (innerErr && innerErr.code === 'ENOTFOUND') {
+        const host = innerErr.hostname || (() => {
+          try {
+            const r = poolConfig.connectionString;
+            const u = new URL(r);
+            return u.hostname;
+          } catch (e) {
+            // intentar extraer entre @ y :
+            const m = String(poolConfig.connectionString).match(/@(.*?):/);
+            return m ? m[1] : '<host desconocido>';
+          }
+        })();
+        console.error(`
+ERROR: No se pudo resolver el host de PostgreSQL: ${host}
+Mensaje original:`, innerErr);
+        console.error('Revisa que el hostname en POSTGRES_URL sea correcto y que tu máquina pueda resolverlo (ping, /etc/hosts, DNS).');
+      }
+      if (msg.includes('SCRAM') || msg.includes('client password must be a string') || msg.toLowerCase().includes('authentication')) {
+        console.error('\nERROR: Falló la autenticación con PostgreSQL. Mensaje original:\n', innerErr);
+        console.error('\nPosibles causas y soluciones:');
+        console.error('- La cadena en POSTGRES_URL no contiene contraseña. Si tu servidor requiere autenticación, añade la contraseña en el connection string:');
+        console.error("  POSTGRES_URL='postgresql://usuario:password@host:5432/dbname'");
+        console.error("  O exporta la contraseña en PGPASSWORD: $env:PGPASSWORD='tu_password' (PowerShell) y asegúrate de arrancar el servidor en la misma sesión).");
+        console.error('- Si tu Postgres está configurado para autenticación trust en host local, asegúrate de que el archivo pg_hba.conf lo permita.');
+        console.error('- Si prefieres que la app no falle al arrancar, configura la variable de entorno correctamente o adapta pg_hba.conf.');
+      }
+      // Re-lanzar el error para que el proceso lo note y puedas verlo
+      throw innerErr;
+    }
+  } catch (err) {
+    console.error('No se pudo verificar la conexión a PostgreSQL al arrancar:', err);
+    // Salir con código 1 para que sea evidente en logs; evita seguir con el servidor sin DB operativa
+    process.exit(1);
+  }
+})();

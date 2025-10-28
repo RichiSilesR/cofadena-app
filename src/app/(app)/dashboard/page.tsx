@@ -7,73 +7,153 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { productionData } from "@/lib/data";
 import { useAppData } from "@/context/app-data-context";
 import { useAuth } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
+
+// --- PALETA DE COLORES Y CLASES MODERNAS ---
+const ACCENT_COLOR_BAR = 'fill-sky-600 dark:fill-sky-400'; 
+const ACCENT_COLOR_TEXT = 'text-sky-600 dark:text-sky-400';
+
+const CARD_BG_DARK = 'dark:bg-slate-800 dark:border-slate-700';
+const CARD_BG_LIGHT = 'bg-white border-gray-200';
+
+const PAGE_BG = 'bg-gray-50 dark:bg-slate-900';
+const TEXT_MUTED = 'text-gray-500 dark:text-slate-400';
+
+// Color directo para la barra de Recharts (usando el mismo valor que Tailwind)
+const barColor = 'rgb(2, 132, 199)'; // Tailwind sky-600
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { projects, mixers } = useAppData();
 
+  // Color de texto para el Tooltip (Celeste Oscuro para Claro, Celeste Claro para Oscuro)
+  // Usamos el color de texto directo para asegurarnos que Recharts lo interprete.
+  const tooltipTextColor = 'rgb(2, 132, 199)'; // sky-600 (Para Light Mode)
+  const tooltipDarkTextColor = 'rgb(125, 211, 252)'; // sky-300 (Para Dark Mode)
+
+  // Función para formatear el Tooltip
+  const formatTooltipValue = (value: number, name: string, props: any) => {
+    // 1. Traduce el nombre de la variable
+    const translatedName = name === 'production' ? 'Producción' : name;
+    
+    // 2. Determina el color del texto basado en el modo (necesitaríamos un hook para saber el modo real)
+    // Por simplicidad, aquí usaremos el color de acento para la cifra
+    return (
+      <span className={ACCENT_COLOR_TEXT}>
+        {value.toLocaleString()}
+      </span>
+    );
+  };
+  
+  // Función para formatear el label del Tooltip (e.g., el día)
+  const formatTooltipLabel = (label: string) => {
+      return (
+          <span className="font-semibold text-gray-900 dark:text-white">
+              {label}
+          </span>
+      );
+  };
+
+  // Función para el contenido personalizado del Tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const textColor = isDarkMode ? tooltipDarkTextColor : tooltipTextColor;
+      
+      return (
+        // CAMBIO: Estilos de la caja del Tooltip (Fondo y Borde)
+        <div className="p-3 shadow-lg rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <p className="font-semibold mb-1 text-gray-900 dark:text-white">{label}</p>
+          <p className="flex justify-between">
+            {/* CAMBIO CLAVE: Texto "Producción" en gris/blanco y la cifra en celeste oscuro */}
+            <span className={cn("text-sm", TEXT_MUTED)}>Producción:</span>
+            <span className={cn("text-sm ml-2 font-bold", ACCENT_COLOR_TEXT)}>{payload[0].value.toLocaleString()}</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+  
   return (
-    <div className="flex flex-col gap-8">
+    <div className={cn("flex flex-col gap-10 p-6 sm:p-8 min-h-screen", PAGE_BG)}>
+      
+      {/* SECCIÓN DE BIENVENIDA (sin cambios) */}
       <div>
         {user ? (
-            <h1 className="text-3xl font-bold font-headline">Bienvenido, {user.name} ({user.role})</h1>
+          <h1 className="text-3xl sm:text-4xl font-extrabold font-headline text-gray-900 dark:text-white">
+            Bienvenido, <span className={ACCENT_COLOR_TEXT}>{user.name}</span> ({user.role})
+          </h1>
         ) : (
-            <h1 className="text-3xl font-bold font-headline">Bienvenido</h1>
+          <h1 className="text-3xl sm:text-4xl font-extrabold font-headline text-gray-900 dark:text-white">Bienvenido</h1>
         )}
-        <p className="text-muted-foreground">Aquí tienes un resumen del estado de tus operaciones.</p>
+        <p className={cn("mt-1", TEXT_MUTED)}>Aquí tienes un resumen del estado de tus operaciones.</p>
       </div>
 
-      <div className="flex flex-wrap gap-6 mb-6 justify-center items-stretch">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow min-w-[260px] flex-1 max-w-xs">
+      {/* TARJETAS DE MÉTRICAS (sin cambios en estructura) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        {/* Tarjeta 1: Proyectos Activos */}
+        <Card className={cn("shadow-lg hover:shadow-xl transition-all duration-300", CARD_BG_LIGHT, CARD_BG_DARK, "lg:col-span-2")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Proyectos Activos</CardTitle>
-            <span className="h-4 w-4 text-primary"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg></span>
+            <span className={cn("h-5 w-5", ACCENT_COLOR_TEXT)}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg>
+            </span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{projects?.filter(p => p.status === "En Curso").length ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Actualizado en tiempo real</p>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">{projects?.filter(p => p.status === "En Curso").length ?? 0}</div>
+            <p className={cn("text-xs", TEXT_MUTED)}>Actualizado en tiempo real</p>
           </CardContent>
         </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow min-w-[260px] flex-1 max-w-xs">
+        
+        {/* Tarjeta 2: Total de Mixers */}
+        <Card className={cn("shadow-lg hover:shadow-xl transition-all duration-300", CARD_BG_LIGHT, CARD_BG_DARK, "lg:col-span-2")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Mixers</CardTitle>
-            <span className="h-4 w-4 text-blue-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg></span>
+            <span className={cn("h-5 w-5", ACCENT_COLOR_TEXT)}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg>
+            </span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mixers?.length ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Mixers registrados en la flota</p>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">{mixers?.length ?? 0}</div>
+            <p className={cn("text-xs", TEXT_MUTED)}>Mixers registrados en la flota</p>
           </CardContent>
         </Card>
-  </div>
+        
+      </div>
 
-      <div className="flex w-full justify-center mt-8">
-        <div className="max-w-2xl w-full">
-          <Card className="shadow-lg">
+      {/* GRÁFICO DE PRODUCCIÓN */}
+      <div className="flex w-full mt-4">
+        <div className="w-full">
+          <Card className={cn("shadow-xl", CARD_BG_LIGHT, CARD_BG_DARK)}>
             <CardHeader>
-              <CardTitle>Producción Semanal</CardTitle>
-              <CardDescription>Unidades producidas en la última semana.</CardDescription>
+              <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Producción Semanal</CardTitle>
+              <CardDescription className={TEXT_MUTED}>Unidades producidas en la última semana.</CardDescription>
             </CardHeader>
-            <CardContent className="pl-2">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={productionData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false}/>
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`}/>
-                  <Tooltip
-                    contentStyle={{
-                      background: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                    }}
+            <CardContent className="p-4 sm:p-6">
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={productionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-gray-200 dark:stroke-slate-700" />
+                  <XAxis dataKey="day" stroke="currentColor" className={TEXT_MUTED} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="currentColor" className={TEXT_MUTED} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value / 1000}k`} />
+                  {/* CAMBIO CLAVE: Usamos el componente personalizado para el Tooltip */}
+                  <Tooltip 
+                      content={<CustomTooltip />} 
+                      wrapperClassName="shadow-lg" 
                   />
-                  <Bar dataKey="production" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar 
+                    dataKey="production" 
+                    className={ACCENT_COLOR_BAR} 
+                    radius={[4, 4, 0, 0]} 
+                  /> 
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
       </div>
-
+      
     </div>
   );
 }

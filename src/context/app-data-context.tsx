@@ -17,6 +17,7 @@ import { fetchMixers, addMixer, editMixer, removeMixer } from '@/app/(app)/regis
 import { fetchDrivers, addDriver, editDriver, removeDriver } from '@/app/(app)/registros/choferes/actions';
 import { useAuth } from '@/context/auth-context';
 import { fetchProjects, addProject, editProject, removeProject } from '@/app/(app)/proyectos/actions';
+import { fetchReports, addReport } from '@/app/(app)/registros/reportes/actions';
 
 interface AppDataContextType {
   clients: Client[];
@@ -24,6 +25,7 @@ interface AppDataContextType {
   drivers: Driver[];
   projects: Project[];
   reports: Report[];
+  createReport: (report: Omit<Report, 'id'>) => void;
   createClient: (client: Omit<Client, 'id'>) => void;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
@@ -69,6 +71,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const dbProjects = await fetchProjects();
       setProjects(dbProjects);
+    })();
+  }, []);
+  // CRUD profesional con base de datos para Reportes
+  React.useEffect(() => {
+    (async () => {
+      const dbReports = await fetchReports();
+      setReports(dbReports);
     })();
   }, []);
   // CRUD profesional con base de datos para Clientes
@@ -149,6 +158,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const dbProjects = await fetchProjects();
     setProjects(dbProjects);
   };
+  const createReport = async (report: Omit<Report, 'id'>) => {
+    const audit = user ? { user_id: user.id, username: user.name } : {};
+    const newReport = await addReport(report, audit);
+    setReports(prev => [newReport, ...prev]);
+    return newReport;
+  };
   const updateProject = async (id: string, project: Partial<Project>) => {
     const audit = user ? { user_id: user.id, username: user.name } : {};
     await editProject(id, { ...project, ...audit });
@@ -161,7 +176,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AppDataContext.Provider value={{ clients, mixers, drivers, projects, reports, createClient, updateClient, deleteClient, createDriver, updateDriver, deleteDriver, createMixer, updateMixer, deleteMixer, createProject, updateProject, deleteProject }}>
+    <AppDataContext.Provider value={{ clients, mixers, drivers, projects, reports, createReport, createClient, updateClient, deleteClient, createDriver, updateDriver, deleteDriver, createMixer, updateMixer, deleteMixer, createProject, updateProject, deleteProject }}>
       {children}
     </AppDataContext.Provider>
   );

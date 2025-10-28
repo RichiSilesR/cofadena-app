@@ -116,3 +116,29 @@ CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients FOR EACH ROW E
 CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_mixers_updated_at BEFORE UPDATE ON mixers FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Tabla de Reportes de Producción (registros históricos de parámetros)
+CREATE TABLE production_reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- fecha y hora del registro
+        arido1 NUMERIC(8,3) NOT NULL DEFAULT 0,
+        arido2 NUMERIC(8,3) NOT NULL DEFAULT 0,
+        arido3 NUMERIC(8,3) NOT NULL DEFAULT 0,
+        client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+        project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+        mixer_id UUID REFERENCES mixers(id) ON DELETE SET NULL,
+        driver_id UUID REFERENCES drivers(id) ON DELETE SET NULL,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Índices para consultas por rango de fecha y por entidades relacionadas
+CREATE INDEX IF NOT EXISTS idx_production_reports_occurred_at ON production_reports (occurred_at);
+CREATE INDEX IF NOT EXISTS idx_production_reports_client_id ON production_reports (client_id);
+CREATE INDEX IF NOT EXISTS idx_production_reports_project_id ON production_reports (project_id);
+
+-- Insert ejemplo
+INSERT INTO production_reports (occurred_at, arido1, arido2, arido3, client_id, project_id, mixer_id, driver_id, notes)
+VALUES
+    (NOW() - INTERVAL '2 days', 10.5, 12.0, 9.8, (SELECT id FROM clients LIMIT 1), (SELECT id FROM projects LIMIT 1), (SELECT id FROM mixers LIMIT 1), (SELECT id FROM drivers LIMIT 1), 'Producción de prueba A'),
+    (NOW() - INTERVAL '1 day', 11.0, 11.5, 10.0, (SELECT id FROM clients LIMIT 1 OFFSET 1), (SELECT id FROM projects LIMIT 1), (SELECT id FROM mixers LIMIT 1 OFFSET 1), (SELECT id FROM drivers LIMIT 1 OFFSET 1), 'Producción de prueba B');

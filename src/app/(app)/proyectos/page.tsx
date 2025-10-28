@@ -30,8 +30,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { PlusCircle, FilePen, Trash2, Calendar as CalendarIcon, Filter, FileDown, FileText, Truck, Contact } from 'lucide-react';
+// Se asume que este Progress ahora soporta 'indicatorClassName' (gracias al fix anterior)
+import { Progress } from '@/components/ui/progress'; 
+import { PlusCircle, FilePen, Trash2, Calendar as CalendarIcon, Filter, FileDown, FileText, Truck, Users, LayoutList } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -55,10 +56,23 @@ import 'jspdf-autotable';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
+
+// --- PALETA DE COLORES PROFESIONAL (CELESTE OSCURO/CYAN) ---
+const ACCENT_COLOR_TEXT = 'text-sky-500 dark:text-sky-400';
+const ACCENT_BUTTON = 'bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600';
+// Color para el badge "En Curso" (Sky/Celeste) y su hover
+const ACCENT_BG = 'bg-sky-600 dark:bg-sky-500'; 
+// Nuevo fondo de la página, asegurando azul oscuro en dark mode (el que aparece gris en la imagen)
+const PAGE_BG = 'bg-gray-50 dark:bg-slate-900'; 
+const CARD_BG = 'bg-white dark:bg-slate-800 shadow-xl dark:border dark:border-slate-700';
+const TEXT_MUTED = 'text-gray-500 dark:text-slate-400';
+const TEXT_PRIMARY = 'text-gray-900 dark:text-white';
+
 
 // Página profesional de gestión de proyectos con UX, accesibilidad y rendimiento mejorados
 export default function ProyectosPage() {
@@ -86,11 +100,12 @@ export default function ProyectosPage() {
   // Memoizar para rendimiento
   const getStatusVariant = useCallback((status: string) => {
     switch (status) {
-      case 'En Curso': return 'default';
-      case 'Completado': return 'secondary';
-      case 'En Pausa': return 'outline';
-      case 'Retrasado': return 'destructive';
-      default: return 'default';
+      case 'Completado': return 'secondary'; // Gris para Completado
+      case 'En Pausa': return 'outline'; // Borde para En Pausa
+      case 'Retrasado': return 'destructive'; // Rojo para Retrasado
+      case 'En Curso': 
+      default: 
+        return 'default';
     }
   }, []);
 
@@ -174,7 +189,8 @@ export default function ProyectosPage() {
       if (date.to && project.end_date) {
         const projectEndDate = parseISO(project.end_date);
         if (!isValid(projectEndDate)) return false;
-        return projectDate >= date.from && projectEndDate <= date.to;
+        // Filtra proyectos que empiezan después del rango de fecha O terminan antes del rango de fecha
+        return projectDate <= date.to && projectEndDate >= date.from;
       }
       return projectDate >= date.from && (!date.to || projectDate <= date.to);
     });
@@ -200,7 +216,7 @@ export default function ProyectosPage() {
         fechaInicio = p.start_date ? (typeof p.start_date === 'string' ? p.start_date.split('T')[0] : p.start_date) : '';
       } catch { fechaInicio = ''; }
       try {
-        if (p.status === 'Terminado' && p.end_date) {
+        if (p.end_date) {
           fechaFin = typeof p.end_date === 'string' ? p.end_date.split('T')[0] : p.end_date;
         } else {
           fechaFin = 'N/A';
@@ -250,9 +266,7 @@ export default function ProyectosPage() {
         fechaInicio = p.start_date ? (typeof p.start_date === 'string' ? format(new Date(p.start_date), 'dd/MM/yyyy') : format(p.start_date, 'dd/MM/yyyy')) : '';
       } catch { fechaInicio = ''; }
       try {
-        if (p.status === 'Terminado' && p.end_date) {
-          fechaFin = typeof p.end_date === 'string' ? format(new Date(p.end_date), 'dd/MM/yyyy') : format(p.end_date, 'dd/MM/yyyy');
-        } else if (p.end_date) {
+        if (p.end_date) {
           fechaFin = typeof p.end_date === 'string' ? format(new Date(p.end_date), 'dd/MM/yyyy') : format(p.end_date, 'dd/MM/yyyy');
         } else {
           fechaFin = 'N/A';
@@ -291,7 +305,7 @@ export default function ProyectosPage() {
         'Observaciones',
       ]],
       body: body,
-      headStyles: { fillColor: [52, 73, 94], halign: 'center', valign: 'middle', fontSize: 9 },
+      headStyles: { fillColor: [30, 144, 255], textColor: 255, halign: 'center', valign: 'middle', fontSize: 9 }, // Azul Intenso para cabecera PDF
       styles: { fontSize: 7.5, cellPadding: 2, valign: 'middle', overflow: 'linebreak' },
       columnStyles: {
         0: { cellWidth: 50 }, // ID
@@ -333,19 +347,30 @@ export default function ProyectosPage() {
 
   // Return principal único y limpio
   return (
-    <div className="flex flex-col gap-8" aria-label="Gestión de Proyectos" role="main">
+    <div className={cn("flex flex-col gap-8 p-6 sm:p-8 min-h-screen", PAGE_BG)} aria-label="Gestión de Proyectos" role="main">
       {/* Loader global */}
       {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" role="status" aria-live="polite">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" role="status" aria-live="polite">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-500" />
           <span className="sr-only">Cargando...</span>
         </div>
       )}
+      
+      {/* Encabezado y Acciones */}
       <div className="flex items-center justify-between">
-        <div className='flex gap-2'>
+        <div className="flex items-center gap-3">
+          <LayoutList className={cn("w-8 h-8", ACCENT_COLOR_TEXT)} /> 
+          <div>
+            <h1 className={cn("text-3xl font-bold font-headline", TEXT_PRIMARY)}>Proyectos</h1>
+            <p className={cn("text-muted-foreground", TEXT_MUTED)}>
+              Gestión centralizada de todos los proyectos de hormigón.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="text-sky-600 border-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:border-sky-400 dark:hover:bg-slate-700">
                 <FileDown className="mr-2 h-4 w-4" />
                 Exportar
               </Button>
@@ -364,7 +389,7 @@ export default function ProyectosPage() {
           {canManage && (
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               <DialogTrigger asChild>
-                <Button onClick={openCreateDialog} aria-label="Nuevo Proyecto">
+                <Button onClick={openCreateDialog} aria-label="Nuevo Proyecto" className={ACCENT_BUTTON}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Nuevo Proyecto
                 </Button>
@@ -394,14 +419,14 @@ export default function ProyectosPage() {
       </div>
 
       {/* Filtros de búsqueda */}
-      <Card className="mb-4">
+      <Card className={cn("mb-4", CARD_BG)}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Filtros de Búsqueda</CardTitle>
-              <CardDescription>Afina tu búsqueda de proyectos por fecha de inicio.</CardDescription>
+              <CardTitle className={cn("text-xl font-semibold", TEXT_PRIMARY)}>Filtros de Búsqueda</CardTitle>
+              <CardDescription className={TEXT_MUTED}>Afina tu búsqueda de proyectos por rango de fechas.</CardDescription>
             </div>
-            <Filter className="h-5 w-5 text-muted-foreground"/>
+            <Filter className={cn("h-5 w-5", ACCENT_COLOR_TEXT)}/>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
@@ -411,7 +436,7 @@ export default function ProyectosPage() {
                 <Button
                   id="date"
                   variant={"outline"}
-                  className="w-[300px] justify-start text-left font-normal"
+                  className={cn("w-full md:w-[300px] justify-start text-left font-normal", TEXT_PRIMARY, date ? "" : TEXT_MUTED)}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date?.from ? (
@@ -441,32 +466,40 @@ export default function ProyectosPage() {
               </PopoverContent>
             </Popover>
           </div>
+          {date?.from && (
+            <Button variant="ghost" onClick={() => setDate(undefined)} className="text-red-500 hover:text-red-600">
+              Limpiar Filtro
+            </Button>
+          )}
         </CardContent>
       </Card>
 
       {/* Tabla de proyectos y paginación */}
-      <Card className="shadow-lg">
+      <Card className={CARD_BG}>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <CardTitle>Lista de Proyectos</CardTitle>
-              <CardDescription>
-                Mostrando {filteredProjects.length} de {projects?.length || 0} proyectos.
+              <CardTitle className={cn("text-xl font-semibold", TEXT_PRIMARY)}>Lista de Proyectos</CardTitle>
+              <CardDescription className={TEXT_MUTED}>
+                Mostrando <strong className="font-semibold">{filteredProjects.length}</strong> de {projects?.length || 0} proyectos registrados.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2" role="navigation" aria-label="Paginación">
-              <label htmlFor="rowsPerPage" className="text-sm mr-2">Filas por página:</label>
-              <select
-                id="rowsPerPage"
-                value={rowsPerPage}
-                onChange={handleRowsPerPageChange}
-                className="border rounded px-2 py-1 text-sm"
-                aria-label="Filas por página"
-              >
-                {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+            <div className="flex items-center gap-4" role="navigation" aria-label="Paginación de la tabla">
+              <div className="flex items-center gap-2">
+                <label htmlFor="rowsPerPage" className={cn("text-sm", TEXT_MUTED)}>Filas por página:</label>
+                <select
+                  id="rowsPerPage"
+                  value={rowsPerPage}
+                  onChange={handleRowsPerPageChange}
+                  className="border rounded px-2 py-1 text-sm bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                  aria-label="Filas por página"
+                >
+                  {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <span className={cn("text-sm", TEXT_MUTED)}>Página {page} de {totalPages}</span>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page === 1}
@@ -474,9 +507,8 @@ export default function ProyectosPage() {
               >
                 {'<'}
               </Button>
-              <span className="text-sm">Página {page} de {totalPages}</span>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
@@ -487,133 +519,163 @@ export default function ProyectosPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table aria-label="Tabla de proyectos">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cod.</TableHead>
-                <TableHead>Cliente/Proyecto</TableHead>
-                <TableHead>Fechas</TableHead>
-                <TableHead>Recursos Asignados</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className='w-[150px]'>Progreso</TableHead>
-                {canManage && <TableHead className="text-right">Acciones</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedProjects.map((project, index) => (
-                <TableRow key={project.id} tabIndex={0} aria-label={`Proyecto ${project.project_name}`}>
-                  <TableCell>{(page - 1) * rowsPerPage + index + 1}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{project.client_name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {project.project_name}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{
-                      project.start_date
-                        ? format(
-                            typeof project.start_date === 'string'
-                              ? new Date(project.start_date)
-                              : project.start_date,
-                            'dd/MM/yyyy'
-                          )
-                        : 'N/A'
-                    }</div>
-                    <div className="text-xs text-muted-foreground">
-                      {project.end_date
-                        ? format(
-                            typeof project.end_date === 'string'
-                              ? new Date(project.end_date)
-                              : project.end_date,
-                            'dd/MM/yyyy'
-                          )
-                        : 'En curso'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="flex items-center gap-1">
-                        <Truck className="h-4 w-4 text-muted-foreground" />
-                        {project.driver_ids?.map(driverId => {
-                          const driver = drivers.find(d => d.id === driverId);
-                          return driver ? (
-                            <span key={driverId} className="text-xs">
-                              {driver.name}
-                            </span>
-                          ) : null;
-                        })}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Contact className="h-4 w-4 text-muted-foreground" />
-                        {project.mixer_ids?.map(mixerId => {
-                          const mixer = mixers.find(m => m.id === mixerId);
-                          return mixer ? (
-                            <span key={mixerId} className="text-xs">
-                              {mixer.alias} ({mixer.plate})
-                            </span>
-                          ) : null;
-                        })}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(project.status)}>{project.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Progress value={project.progress} className="h-2" />
-                    <span className="text-xs">{project.progress}%</span>
-                  </TableCell>
-                  {canManage && (
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label="Acciones">
-                            <FilePen className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => openEditDialog(project)}>
-                            Editar
-                          </DropdownMenuItem>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  ¿Estás seguro de que quieres eliminar este proyecto?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente el proyecto{' '}
-                                  <strong>{project.project_name}</strong>.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(project.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table aria-label="Tabla de proyectos">
+              <TableHeader>
+                <TableRow className="bg-gray-100 dark:bg-slate-700/50 border-b dark:border-slate-700">
+                  <TableHead className={cn("font-semibold", TEXT_PRIMARY)}>Cod.</TableHead>
+                  <TableHead className={cn("font-semibold", TEXT_PRIMARY)}>Cliente/Proyecto</TableHead>
+                  <TableHead className={cn("font-semibold", TEXT_PRIMARY)}>Fechas</TableHead>
+                  <TableHead className={cn("font-semibold", TEXT_PRIMARY)}>Recursos Asignados</TableHead>
+                  <TableHead className={cn("font-semibold", TEXT_PRIMARY)}>Estado</TableHead>
+                  <TableHead className={cn("font-semibold w-[150px]", TEXT_PRIMARY)}>Progreso</TableHead>
+                  {canManage && <TableHead className={cn("text-right font-semibold", TEXT_PRIMARY)}>Acciones</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedProjects.map((project, index) => (
+                  <TableRow key={project.id} tabIndex={0} aria-label={`Proyecto ${project.project_name}`} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <TableCell className={TEXT_MUTED}>{(page - 1) * rowsPerPage + index + 1}</TableCell>
+                    <TableCell>
+                      <div className={cn("font-medium", TEXT_PRIMARY)}>{project.client_name}</div>
+                      <div className={cn("text-sm", TEXT_MUTED)}>
+                        {project.project_name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className={cn("font-medium", TEXT_PRIMARY)}>{
+                        project.start_date
+                          ? format(
+                              typeof project.start_date === 'string'
+                                ? parseISO(project.start_date)
+                                : project.start_date,
+                              'dd/MM/yyyy'
+                            )
+                          : 'N/A'
+                      }</div>
+                      <div className={cn("text-xs", TEXT_MUTED)}>
+                        {project.end_date
+                          ? format(
+                              typeof project.end_date === 'string'
+                                ? parseISO(project.end_date)
+                                : project.end_date,
+                              'dd/MM/yyyy'
+                            )
+                          : 'En curso'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {/* Choferes */}
+                        <span className="flex items-start gap-1">
+                          <Users className={cn("h-4 w-4 flex-shrink-0", ACCENT_COLOR_TEXT)} />
+                          <div className='flex flex-wrap gap-1'>
+                            {project.driver_ids?.map(driverId => {
+                              const driver = drivers.find(d => d.id === driverId);
+                              return driver ? (
+                                <span key={driverId} className={cn("text-xs leading-4", TEXT_PRIMARY)}>
+                                  {driver.name}
+                                </span>
+                              ) : null;
+                            }) || <span className={cn("text-xs leading-4 italic", TEXT_MUTED)}>Sin Chofer</span>}
+                          </div>
+                        </span>
+                        {/* Mixers */}
+                        <span className="flex items-start gap-1">
+                          <Truck className={cn("h-4 w-4 flex-shrink-0", ACCENT_COLOR_TEXT)} />
+                          <div className='flex flex-wrap gap-1'>
+                            {project.mixer_ids?.map(mixerId => {
+                              const mixer = mixers.find(m => m.id === mixerId);
+                              return mixer ? (
+                                <span key={mixerId} className={cn("text-xs leading-4", TEXT_PRIMARY)}>
+                                  {mixer.alias} ({mixer.plate.split('').slice(0, 4).join('')}...)
+                                </span>
+                              ) : null;
+                            }) || <span className={cn("text-xs leading-4 italic", TEXT_MUTED)}>Sin Mixer</span>}
+                          </div>
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {/* FIX: Badge "En Curso" y hover en color Sky/Celeste */}
+                      <Badge 
+                        variant={getStatusVariant(project.status)} 
+                        className={cn(
+                          project.status === 'En Curso' && ACCENT_BG,
+                          project.status === 'En Curso' && 'text-white hover:bg-sky-700 dark:hover:bg-sky-600'
+                        )}
+                      >
+                        {project.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {/* FIX: La barra de progreso se pinta de color Cyan usando la clase del indicador */}
+                      <Progress 
+                        value={project.progress} 
+                        className="h-2 bg-gray-200 dark:bg-slate-700" // Asegura que el fondo de la barra sea visible y oscuro en dark mode
+                        indicatorClassName="bg-cyan-500 dark:bg-cyan-400" // SOLUCIÓN DEL COLOR AZUL/CYAN
+                      />
+                      <span className={cn("text-xs font-medium", TEXT_PRIMARY)}>{project.progress}%</span>
+                    </TableCell>
+                    {canManage && (
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="Acciones" className={cn("text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-slate-700")}>
+                              <FilePen className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => openEditDialog(project)}>
+                              Editar
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    ¿Estás seguro de que quieres eliminar este proyecto?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente el proyecto{' '}
+                                    <strong>{project.project_name}</strong>.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(project.id)}
+                                    className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+                                  >
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+                {paginatedProjects.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-slate-400">
+                      No se encontraron proyectos que coincidan con la búsqueda o el filtro de fechas.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
+}

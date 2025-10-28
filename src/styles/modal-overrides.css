@@ -1,0 +1,21 @@
+/* Overrides para @reach/dialog para evitar fondo blanco y problemas de interactividad */
+.reach-dialog__overlay {
+  background: rgba(0, 0, 0, 0.5) !important; /* overlay semitransparente */
+  pointer-events: auto !important;
+}
+
+.reach-dialog {
+  background: transparent !important; /* eliminar fondo blanco */
+  box-shadow: none !important;
+}
+
+.reach-dialog__content {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Asegurar que el botón de cierre sea clickeable */
+.reach-dialog button {
+  pointer-events: auto !important;
+}

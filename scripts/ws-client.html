@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>WS Client - prueba</title>
+  <style>body{font-family:Segoe UI,Arial;margin:16px} pre{background:#111;color:#0f0;padding:12px;border-radius:6px}</style>
+</head>
+<body>
+  <h3>Cliente WebSocket (prueba)</h3>
+  <div>
+    <button id="connect">Conectar WS</button>
+    <button id="disconnect">Desconectar</button>
+  </div>
+  <p>Estado: <span id="status">desconectado</span></p>
+  <pre id="out">sin datos</pre>
+
+  <h4>Prueba de escritura</h4>
+  <div>
+    Tag: <input id="tag" value="ARIDO1"> Value: <input id="val" value="10"> <button id="write">Enviar</button>
+  </div>
+
+  <script>
+    let ws;
+    const out = document.getElementById('out');
+    const status = document.getElementById('status');
+    document.getElementById('connect').onclick = () => {
+      ws = new WebSocket('ws://localhost:4000');
+      status.textContent = 'conectando...';
+      ws.onopen = () => { status.textContent = 'conectado'; out.textContent = 'esperando mensajes...'; };
+      ws.onmessage = (m) => { try { const j = JSON.parse(m.data); out.textContent = JSON.stringify(j, null, 2); } catch(e){ out.textContent = m.data; } };
+      ws.onclose = () => { status.textContent = 'cerrado'; };
+      ws.onerror = (e) => { status.textContent = 'error'; console.error(e); };
+    };
+    document.getElementById('disconnect').onclick = () => { if(ws) ws.close(); };
+    document.getElementById('write').onclick = async () => {
+      const tag = document.getElementById('tag').value;
+      const value = document.getElementById('val').value;
+      try {
+        const r = await fetch('http://localhost:4001/write', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tag, value }) });
+        const j = await r.json();
+        alert('Respuesta: ' + JSON.stringify(j));
+      } catch (e) { alert('Error: ' + e); }
+    };
+  </script>
+</body>
+</html>

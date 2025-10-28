@@ -62,12 +62,17 @@ CREATE TABLE projects (
 );
 
 -- Reports Table
-CREATE TABLE reports (
-    id VARCHAR(50) PRIMARY KEY,
-    date DATE NOT NULL,
-    project_name VARCHAR(255) NOT NULL,
-    submitted_by VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL,
+CREATE TABLE production_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    occurred_at TIMESTAMPTZ NOT NULL,
+    arido1 NUMERIC(10, 2) DEFAULT 0,
+    arido2 NUMERIC(10, 2) DEFAULT 0,
+    arido3 NUMERIC(10, 2) DEFAULT 0,
+    client_id UUID REFERENCES clients(id),
+    project_id UUID REFERENCES projects(id),
+    mixer_id UUID REFERENCES mixers(id),
+    driver_id UUID REFERENCES drivers(id),
+    notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

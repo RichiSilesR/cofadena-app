@@ -44,7 +44,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-white to-gray-200 p-4">
+    // CAMBIO FINAL AQUÍ: Se usa el azul ligeramente más oscuro: #23395B
+    <div className="flex min-h-screen items-center justify-center bg-[#23395B] p-4"> 
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto w-24 h-24 mb-4">
@@ -69,8 +70,9 @@ export default function LoginPage() {
                 type="text" 
                 placeholder="Ej: SRSR0402" 
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                 required
+                className="border border-sky-700 focus:border-sky-800"
               />
             </div>
             <div className="space-y-2">
@@ -80,8 +82,8 @@ export default function LoginPage() {
                   id="password" 
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                  className="pr-10 border border-sky-700 focus:border-sky-800"
                   required
                 />
                 <button
@@ -95,7 +97,11 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full font-bold" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full font-bold bg-sky-700 hover:bg-sky-800" 
+              disabled={isLoading}
+            >
               {isLoading ? 'Iniciando...' : 'Iniciar Sesión'}
             </Button>
             <Button variant="link" size="sm" className="text-muted-foreground">¿Olvidaste tu contraseña?</Button>

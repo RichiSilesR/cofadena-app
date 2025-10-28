@@ -33,31 +33,53 @@ let plcState = {
 async function connectPLC() {
   try {
     if (!client.isOpen) {
-      await client.connectTCP(PLC_IP, { port: PLC_PORT });
-      client.setID(1);
+      await client.connectTCP(PLC_IP, { port: PLC_PORT, timeout: 2000 });
+  client.setID(0);
+      try {
+        console.log('Intentando leer sensorPeso (vw6) en HR 4 (dirección 4), Slave ID 1...');
+        const res = await client.readHoldingRegisters(4, 1);
+        if (res) {
+          console.log('Respuesta completa HR 4:', JSON.stringify(res, null, 2));
+          const valor = res.data ? res.data[0] : undefined;
+          console.log('Valor sensorPeso (vw6) HR 4:', valor);
+        } else {
+          console.log('La respuesta de Modbus en HR 4 es undefined o null');
+        }
+      } catch (err) {
+        console.error('Error leyendo sensorPeso (vw6) en HR 4:');
+        console.error(err);
+      }
       console.log('Conectado al PLC LOGO!');
     }
   } catch (err) {
-    console.error('Error de conexión Modbus:', err.message);
+    console.error('Error de conexión Modbus:', err);
   }
 }
 
 async function pollPLC() {
   try {
     await connectPLC();
-    const aridos = [];
-    for (let i = 0; i < 3; i++) {
-      const res = await client.readHoldingRegisters(i * 2, 1);
-      aridos.push(res.data[0]);
+    let sensorPeso = 0;
+    try {
+      console.log('Intentando leer sensorPeso (vw6) en HR 4 con Slave ID 0...');
+      const res = await client.readHoldingRegisters(4, 1);
+      if (res) {
+        console.log('Respuesta completa HR 4:', JSON.stringify(res, null, 2));
+        sensorPeso = res.data ? res.data[0] : undefined;
+        console.log('Valor sensorPeso (vw6) HR 4:', sensorPeso);
+      } else {
+        console.log('La respuesta de Modbus en HR 4 es undefined o null');
+      }
+    } catch (err) {
+      console.error('Error leyendo sensorPeso (vw6) en HR 4:');
+      console.error(err);
     }
-    const sensorPeso = (await client.readHoldingRegisters(6, 1)).data[0];
-    const coils = await client.readCoils(8, 7);
     plcState = {
-      aridos,
-      compuertas: coils.data.slice(1, 6),
+      aridos: [0, 0, 0],
+      compuertas: [0, 0, 0, 0, 0],
       sensorPeso,
-      iniciado: coils.data[0],
-      apagado: coils.data[6]
+      iniciado: false,
+      apagado: false
     };
     wss.clients.forEach(ws => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -69,7 +91,7 @@ async function pollPLC() {
   }
 }
 
-setInterval(pollPLC, 500);
+setInterval(pollPLC, 1000);
 
 wss.on('connection', ws => {
   console.log('Cliente WebSocket conectado');
